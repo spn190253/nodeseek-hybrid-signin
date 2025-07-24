@@ -77,12 +77,15 @@ jobs:
         GH_PAT: ${{ secrets.GH_PAT }}
         GITHUB_REPOSITORY: ${{ github.repository }}
         PROXY_URL: ${{ vars.PROXY_URL }}
+        TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
+        TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
       run: |
         echo "🚀 开始执行 NodeSeek 混合签到..."
         echo "📊 统计功能: $ENABLE_STATISTICS"
         echo "🤖 Selenium 模式: $ENABLE_SELENIUM" 
         echo "🎲 随机模式: $NS_RANDOM"
         echo "🌐 代理设置: ${{ vars.PROXY_URL && '已配置' || '未配置' }}"
+        echo "📢 TG通知: ${{ secrets.TG_BOT_TOKEN && secrets.TG_CHAT_ID && '已配置' || '未配置' }}"
         echo "📈 账户数量: $(echo "$NS_COOKIE" | tr '&' '\n' | wc -l)"
         
         python nodeseek_hybrid.py

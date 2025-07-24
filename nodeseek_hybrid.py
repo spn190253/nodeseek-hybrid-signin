@@ -58,6 +58,36 @@ except ImportError:
     def send(title, content):
         print(f"📢 {title}: {content}")
 
+# Telegram Bot 推送功能
+def send_telegram_message(message: str, parse_mode: str = "HTML"):
+    """发送Telegram消息"""
+    bot_token = os.environ.get("TG_BOT_TOKEN", "")
+    chat_id = os.environ.get("TG_CHAT_ID", "")
+    
+    if not bot_token or not chat_id:
+        logging.warning("⚠️  TG_BOT_TOKEN 或 TG_CHAT_ID 未配置，跳过TG推送")
+        return False
+    
+    try:
+        import requests as py_requests
+        url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+        data = {
+            "chat_id": chat_id,
+            "text": message,
+            "parse_mode": parse_mode
+        }
+        
+        response = py_requests.post(url, json=data, timeout=10)
+        if response.status_code == 200:
+            logging.info("✅ TG消息发送成功")
+            return True
+        else:
+            logging.error(f"❌ TG消息发送失败: {response.status_code}")
+            return False
+    except Exception as e:
+        logging.error(f"❌ TG推送异常: {str(e)}")
+        return False
+
 # 配置日志
 logging.basicConfig(
     level=logging.INFO,
@@ -71,8 +101,7 @@ class SigninResult:
     success: bool
     message: str
     method: str  # 'http', 'proxy', 'selenium'
-    cookie_updated: bool = False
-    new_cookie: str = ""
+    cookie_expired: bool = False  # Cookie是否过期
     statistics: Optional[Dict] = None
 
 @dataclass  
@@ -338,11 +367,24 @@ class HTTPSigner:
                 except:
                     return SigninResult(False, f"服务器 500 错误", "http")
             
+            elif response.status_code == 401:
+                # Cookie过期或无效
+                return SigninResult(False, "Cookie已过期，请手动更新", "http", cookie_expired=True)
+            
             elif response.status_code == 403:
                 return SigninResult(False, "403 Forbidden - 可能被 Cloudflare 拦截", "http")
+                
+            elif response.status_code == 302:
+                # 重定向通常意味着未登录
+                return SigninResult(False, "302重定向 - Cookie可能已过期", "http", cookie_expired=True)
             
             else:
-                return SigninResult(False, f"HTTP {response.status_code} 错误", "http")
+                # 检查响应文本是否包含登录页面特征
+                response_text = response.text.lower()
+                if any(keyword in response_text for keyword in ['login', 'signin', 'sign in', '登录', '请登录']):
+                    return SigninResult(False, f"HTTP {response.status_code} - Cookie可能已过期", "http", cookie_expired=True)
+                else:
+                    return SigninResult(False, f"HTTP {response.status_code} 错误", "http")
                 
         except Exception as e:
             return SigninResult(False, f"HTTP 签到异常: {str(e)}", "http")
@@ -416,7 +458,7 @@ class SeleniumSigner:
             self.driver.refresh()
             time.sleep(3)
             
-            # 验证登录
+            # 验证登录状态
             try:
                 username_element = WebDriverWait(self.driver, 15).until(
                     EC.presence_of_element_located((By.CSS_SELECTOR, "a.Username"))
@@ -424,7 +466,12 @@ class SeleniumSigner:
                 username = username_element.text.strip()
                 logging.info(f"🔐 Selenium 登录成功: {username}")
             except:
-                return SigninResult(False, "Selenium 登录验证失败", "selenium")
+                # 检查是否被重定向到登录页面
+                current_url = self.driver.current_url
+                if "signin" in current_url.lower() or "login" in current_url.lower():
+                    return SigninResult(False, "Selenium - Cookie已过期，需要重新登录", "selenium", cookie_expired=True)
+                else:
+                    return SigninResult(False, "Selenium 登录验证失败", "selenium")
             
             # 访问签到页面
             self.driver.get("https://www.nodeseek.com/board")
@@ -462,7 +509,12 @@ class SeleniumSigner:
             return SigninResult(True, f"Selenium 签到成功 ({mode})", "selenium")
             
         except Exception as e:
-            return SigninResult(False, f"Selenium 签到异常: {str(e)}", "selenium")
+            error_msg = str(e)
+            # 检查是否是登录相关错误
+            if any(keyword in error_msg.lower() for keyword in ['login', 'signin', 'authentication', '登录']):
+                return SigninResult(False, f"Selenium - Cookie可能已过期: {error_msg}", "selenium", cookie_expired=True)
+            else:
+                return SigninResult(False, f"Selenium 签到异常: {error_msg}", "selenium")
         finally:
             if self.driver:
                 self.driver.quit()
@@ -601,6 +653,7 @@ class NodeSeekHybridSigner:
         results = []
         cookies_updated = False
         updated_cookies = []
+        expired_accounts = []  # 记录Cookie过期的账户
         
         for account in accounts:
             logging.info(f"\n{'='*30} {account.display_name} {'='*30}")
@@ -630,6 +683,11 @@ class NodeSeekHybridSigner:
                 logging.error(f"❌ {account.display_name}: {result.message}")
                 updated_cookies.append(account.cookie)  # 保持原 Cookie
                 
+                # 检查是否Cookie过期
+                if result.cookie_expired:
+                    expired_accounts.append(account.display_name)
+                    logging.warning(f"🚨 检测到Cookie过期: {account.display_name}")
+                
                 # 发送失败通知
                 if NOTIFICATION_AVAILABLE:
                     try:
@@ -637,14 +695,28 @@ class NodeSeekHybridSigner:
                     except:
                         pass
         
-        # 保存更新的 Cookie
+        # 发送Cookie过期的TG通知
+        if expired_accounts:
+            expired_msg = f"🚨 <b>NodeSeek Cookie过期提醒</b>\n\n"
+            expired_msg += f"以下账户的Cookie已过期，需要手动更新：\n"
+            for i, account_name in enumerate(expired_accounts, 1):
+                expired_msg += f"{i}. {account_name}\n"
+            expired_msg += f"\n请到GitHub仓库的Variables页面更新NS_COOKIE变量"
+            
+            # 发送TG通知
+            if send_telegram_message(expired_msg):
+                logging.info(f"✅ 已通过TG通知Cookie过期: {len(expired_accounts)}个账户")
+            else:
+                logging.warning(f"⚠️  TG通知发送失败，但检测到{len(expired_accounts)}个Cookie过期")
+        
+        # 保存更新的 Cookie (移除GitHubVariableManager依赖)
         if self.config['environment'] == "github" and updated_cookies:
             try:
                 new_cookie_str = "&".join([c for c in updated_cookies if c.strip()])
-                GitHubVariableManager.save_cookie_to_github("NS_COOKIE", new_cookie_str)
-                logging.info("✅ Cookie 已保存到 GitHub Actions")
+                # 简化：不再自动更新GitHub变量，改为通知用户
+                logging.info("ℹ️  Cookie状态已检查完毕")
             except Exception as e:
-                logging.error(f"❌ Cookie 保存失败: {str(e)}")
+                logging.error(f"❌ Cookie处理失败: {str(e)}")
         
         # 生成摘要报告
         success_count = sum(1 for _, result in results if result.success)
@@ -652,7 +724,18 @@ class NodeSeekHybridSigner:
         logging.info(f"📊 签到完成: {success_count}/{len(results)} 成功")
         
         if success_count < len(results):
-            logging.warning("⚠️  部分账户签到失败，建议检查 Cookie 或手动更新")
+            failed_count = len(results) - success_count
+            expired_count = len(expired_accounts)
+            logging.warning(f"⚠️  {failed_count}个账户签到失败 (其中{expired_count}个Cookie过期)")
+            
+            # 发送汇总TG通知
+            if expired_count > 0:
+                summary_msg = f"📊 <b>NodeSeek签到汇总</b>\n\n"
+                summary_msg += f"✅ 成功: {success_count}个账户\n"
+                summary_msg += f"❌ 失败: {failed_count}个账户\n"
+                summary_msg += f"🚨 Cookie过期: {expired_count}个账户\n\n"
+                summary_msg += f"请及时更新过期的Cookie以确保正常签到"
+                send_telegram_message(summary_msg)
             
         logging.info("🏁 混合签到器执行完毕")
 

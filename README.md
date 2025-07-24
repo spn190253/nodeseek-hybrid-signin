@@ -10,6 +10,7 @@
 - 🌐 **环境智能适配**: GitHub Actions / 青龙面板 / 本地运行
 - 🔄 **Cookie 自动管理**: 支持 GitHub Variables 自动持久化
 - 📊 **30天统计追踪**: 可选的签到收益统计分析
+- 📢 **Telegram 通知**: Cookie过期时自动推送TG通知提醒
 - 🛡️ **零依赖验证码**: 移除 YesCaptcha/CloudFreed 依赖
 - ⚡ **性能优化设计**: curl_cffi 增强 Cloudflare 绕过能力
 
@@ -48,6 +49,8 @@
 | 密钥名 | 说明 |
 |--------|------|
 | `GH_PAT` | GitHub Personal Access Token (用于 Cookie 自动更新) |
+| `TG_BOT_TOKEN` | Telegram Bot Token (用于推送Cookie过期通知) |
+| `TG_CHAT_ID` | Telegram Chat ID (接收通知的聊天ID) |
 
 ### 3. 启用 Actions
 
@@ -82,6 +85,35 @@ session=232d19a2b6de92013fbf57f6f454a973; smac=1751693002-Q3I8vle80Co1dHjX65C9Yv
 # 多账户 (用 & 分隔)
 session=账户1cookie; smac=账户1值&session=账户2cookie; smac=账户2值
 ```
+
+### Telegram Bot 通知设置
+
+如果希望在 Cookie 过期时收到 Telegram 通知，可以配置 Telegram Bot：
+
+#### 1. 创建 Telegram Bot
+
+1. 在 Telegram 中搜索 `@BotFather`
+2. 发送 `/newbot` 创建新 Bot
+3. 按提示设置 Bot 名称和用户名
+4. 获取 Bot Token (格式: `123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11`)
+
+#### 2. 获取 Chat ID
+
+**方法一 (推荐)**: 使用 @userinfobot
+1. 在 Telegram 中搜索 `@userinfobot`
+2. 向该 Bot 发送任意消息
+3. 复制返回的 `Id` 数值
+
+**方法二**: 通过 API 获取
+1. 向你的 Bot 发送任意消息
+2. 访问: `https://api.telegram.org/bot你的BOT_TOKEN/getUpdates`
+3. 在返回的 JSON 中查找 `chat.id` 值
+
+#### 3. 配置 GitHub Secrets
+
+将获取的信息添加到仓库的 **Secrets** 中：
+- `TG_BOT_TOKEN`: Bot Token
+- `TG_CHAT_ID`: Chat ID
 
 ### 自动 Cookie 更新设置
 
@@ -182,6 +214,9 @@ python nodeseek_hybrid.py
 | `⚠️ HTTP 签到失败` | HTTP 方式失败，尝试其他方式 | 观察后续方法是否成功 |
 | `❌ 所有签到方法都失败` | 全部方法失败 | 检查 Cookie 是否过期 |
 | `🔐 Selenium 登录成功` | Selenium 成功验证登录 | 无需处理 |
+| `🚨 检测到Cookie过期` | 发现Cookie已过期 | 手动更新相应账户Cookie |
+| `✅ TG消息发送成功` | Telegram通知发送成功 | 无需处理 |
+| `⚠️ TG通知发送失败` | Telegram推送失败 | 检查TG配置是否正确 |
 
 ---
 
