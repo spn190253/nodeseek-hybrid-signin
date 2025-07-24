@@ -28,7 +28,7 @@
 
 | 变量名 | 说明 | 示例 |
 |--------|------|------|
-| `NS_COOKIE` | NodeSeek Cookie (多账户用 `&` 分隔) | `session=abc123; smac=def456&session=ghi789; smac=jkl012` |
+| `NS_COOKIE` | NodeSeek Cookie (多账户用 `&` 分隔) | `session=abc123; smac=def456; cf_clearance=xyz...` |
 
 #### Cookie 获取方法
 
@@ -36,7 +36,9 @@
 2. 按 `F12` 打开开发者工具
 3. 切换到 **Network** 标签页
 4. 刷新页面，找到任意请求
-5. 在 **Request Headers** 中复制完整的 `Cookie` 值
+5. 在 **Request Headers** 中复制完整的 `Cookie` 值（直接复制整串即可）
+
+> **💡 提示**: 直接复制浏览器中的完整 Cookie 字符串，无需手动添加分号或格式化
 
 #### 可选的 Variables 配置
 
@@ -48,7 +50,6 @@
 
 | 密钥名 | 说明 |
 |--------|------|
-| `GH_PAT` | GitHub Personal Access Token (用于 Cookie 自动更新) |
 | `TG_BOT_TOKEN` | Telegram Bot Token (用于推送Cookie过期通知) |
 | `TG_CHAT_ID` | Telegram Chat ID (接收通知的聊天ID) |
 
@@ -79,11 +80,11 @@
 ### 多账户配置示例
 
 ```bash
-# 账户1
+# 单账户 - 直接复制完整Cookie
 session=232d19a2b6de92013fbf57f6f454a973; smac=1751693002-Q3I8vle80Co1dHjX65C9YvlP0X3jfdBcdLGUffVWbnM; cf_clearance=xJV0806yEMy...
 
-# 多账户 (用 & 分隔)
-session=账户1cookie; smac=账户1值&session=账户2cookie; smac=账户2值
+# 多账户 - 用 & 分隔不同账户的完整Cookie
+session=账户1完整cookie字符串&session=账户2完整cookie字符串
 ```
 
 ### Telegram Bot 通知设置
@@ -109,19 +110,12 @@ session=账户1cookie; smac=账户1值&session=账户2cookie; smac=账户2值
 2. 访问: `https://api.telegram.org/bot你的BOT_TOKEN/getUpdates`
 3. 在返回的 JSON 中查找 `chat.id` 值
 
-#### 3. 配置 GitHub Secrets
+#### 3. Cookie 过期处理
 
-将获取的信息添加到仓库的 **Secrets** 中：
-- `TG_BOT_TOKEN`: Bot Token
-- `TG_CHAT_ID`: Chat ID
-
-### 自动 Cookie 更新设置
-
-如果希望脚本能自动更新过期的 Cookie，需要配置 GitHub Personal Access Token：
-
-1. 创建 PAT: **Settings** → **Developer settings** → **Personal access tokens** → **Tokens (classic)**
-2. 选择权限: `repo` (完整仓库访问权限)
-3. 将 Token 添加到 **Secrets** 中，命名为 `GH_PAT`
+当 Cookie 过期时：
+1. 脚本会自动发送 Telegram 通知
+2. 收到通知后，到 GitHub 仓库的 **Variables** 页面手动更新 `NS_COOKIE`
+3. 无需额外配置，简单有效
 
 ---
 
@@ -132,7 +126,6 @@ session=账户1cookie; smac=账户1值&session=账户2cookie; smac=账户2值
 ```
 NodeSeekHybridSigner (主类)
 ├── EnvironmentDetector (环境检测)
-├── GitHubVariableManager (变量管理)
 ├── HTTPSigner (轻量级签到)
 ├── SeleniumSigner (终极方案)
 └── StatisticsTracker (统计追踪)
@@ -238,8 +231,8 @@ python nodeseek_hybrid.py
 2. 查看 Actions 日志中的具体错误信息
 3. 确认仓库已启用 Actions
 
-**问题**: Cookie 自动更新失败
-**解决**: 检查 `GH_PAT` 是否正确配置且有足够权限
+**问题**: Cookie 过期通知
+**解决**: 检查 `TG_BOT_TOKEN` 和 `TG_CHAT_ID` 是否正确配置
 
 ---
 

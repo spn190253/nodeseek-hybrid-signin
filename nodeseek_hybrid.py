@@ -126,8 +126,7 @@ class EnvironmentDetector:
                 return "qinglong"
         
         # 检测 GitHub Actions
-        if (os.environ.get("GITHUB_ACTIONS") == "true" or 
-            (os.environ.get("GH_PAT") and os.environ.get("GITHUB_REPOSITORY"))):
+        if os.environ.get("GITHUB_ACTIONS") == "true":
             return "github"
         
         return "local"
@@ -155,53 +154,6 @@ class EnvironmentDetector:
             })
         
         return config
-
-class GitHubVariableManager:
-    """GitHub Actions 变量管理器"""
-    
-    @staticmethod
-    def save_cookie_to_github(var_name: str, cookie: str) -> bool:
-        """保存 Cookie 到 GitHub Actions 变量"""
-        token = os.environ.get("GH_PAT")
-        repo = os.environ.get("GITHUB_REPOSITORY")
-        
-        if not token or not repo:
-            logging.warning("GH_PAT 或 GITHUB_REPOSITORY 未设置，跳过变量更新")
-            return False
-        
-        try:
-            import requests as py_requests
-            headers = {
-                "Authorization": f"Bearer {token}",
-                "Accept": "application/vnd.github+json",
-                "X-GitHub-Api-Version": "2022-11-28"
-            }
-            
-            # 尝试更新现有变量
-            url_update = f"https://api.github.com/repos/{repo}/actions/variables/{var_name}"
-            data = {"name": var_name, "value": cookie}
-            
-            response = py_requests.patch(url_update, headers=headers, json=data)
-            if response.status_code == 204:
-                logging.info(f"✅ GitHub 变量 {var_name} 更新成功")
-                return True
-            elif response.status_code == 404:
-                # 变量不存在，创建新变量
-                url_create = f"https://api.github.com/repos/{repo}/actions/variables"
-                response = py_requests.post(url_create, headers=headers, json=data)
-                if response.status_code == 201:
-                    logging.info(f"✅ GitHub 变量 {var_name} 创建成功") 
-                    return True
-                else:
-                    logging.error(f"❌ GitHub 变量创建失败: {response.status_code}")
-                    return False
-            else:
-                logging.error(f"❌ GitHub 变量更新失败: {response.status_code}")
-                return False
-                
-        except Exception as e:
-            logging.error(f"❌ GitHub 变量操作异常: {e}")
-            return False
 
 class StatisticsTracker:
     """签到统计追踪器"""
@@ -709,14 +661,8 @@ class NodeSeekHybridSigner:
             else:
                 logging.warning(f"⚠️  TG通知发送失败，但检测到{len(expired_accounts)}个Cookie过期")
         
-        # 保存更新的 Cookie (移除GitHubVariableManager依赖)
-        if self.config['environment'] == "github" and updated_cookies:
-            try:
-                new_cookie_str = "&".join([c for c in updated_cookies if c.strip()])
-                # 简化：不再自动更新GitHub变量，改为通知用户
-                logging.info("ℹ️  Cookie状态已检查完毕")
-            except Exception as e:
-                logging.error(f"❌ Cookie处理失败: {str(e)}")
+        # Cookie检查完毕 - 用户可根据TG通知手动更新过期Cookie
+        logging.info("ℹ️  Cookie状态已检查完毕，过期Cookie已通过TG通知")
         
         # 生成摘要报告
         success_count = sum(1 for _, result in results if result.success)
