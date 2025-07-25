@@ -669,19 +669,50 @@ class NodeSeekHybridSigner:
         logging.info(f"\n{'='*50}")
         logging.info(f"📊 签到完成: {success_count}/{len(results)} 成功")
         
-        if success_count < len(results):
-            failed_count = len(results) - success_count
+        # 构建详细的签到结果消息
+        summary_msg = f"🌟 <b>NodeSeek 签到报告</b>\n"
+        summary_msg += f"⏰ {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+        
+        # 成功账户详情
+        success_results = [(acc, res) for acc, res in results if res.success]
+        if success_results:
+            summary_msg += f"✅ <b>签到成功 ({len(success_results)}个账户)</b>\n"
+            for i, (account, result) in enumerate(success_results, 1):
+                # 提取鸡腿信息
+                if "鸡腿" in result.message:
+                    drumstick_info = result.message.split("：")[-1] if "：" in result.message else result.message
+                    summary_msg += f"📱 账户{i}：{drumstick_info}\n"
+                else:
+                    summary_msg += f"📱 账户{i}：{result.message}\n"
+            summary_msg += "\n"
+        
+        # 失败账户处理
+        failed_results = [(acc, res) for acc, res in results if not res.success]
+        if failed_results:
+            failed_count = len(failed_results)
             expired_count = len(expired_accounts)
             logging.warning(f"⚠️  {failed_count}个账户签到失败 (其中{expired_count}个Cookie过期)")
             
-            # 发送汇总TG通知
+            summary_msg += f"❌ <b>签到失败 ({failed_count}个账户)</b>\n"
+            for i, (account, result) in enumerate(failed_results, 1):
+                summary_msg += f"🚫 账户{i}：{result.message}\n"
+            summary_msg += "\n"
+            
             if expired_count > 0:
-                summary_msg = f"📊 <b>NodeSeek签到汇总</b>\n\n"
-                summary_msg += f"✅ 成功: {success_count}个账户\n"
-                summary_msg += f"❌ 失败: {failed_count}个账户\n"
-                summary_msg += f"🚨 Cookie过期: {expired_count}个账户\n\n"
-                summary_msg += f"请及时更新过期的Cookie以确保正常签到"
-                send_telegram_message(summary_msg)
+                summary_msg += f"🚨 <b>Cookie过期：{expired_count}个账户</b>\n"
+                summary_msg += f"💡 请及时更新过期的Cookie以确保正常签到\n\n"
+        
+        # 添加统计摘要
+        summary_msg += f"📊 <b>统计摘要</b>\n"
+        summary_msg += f"✅ 成功：{success_count}个\n"
+        summary_msg += f"❌ 失败：{len(failed_results)}个\n"
+        summary_msg += f"📈 成功率：{(success_count/len(results)*100):.1f}%"
+        
+        # 发送TG通知（无论成功失败都发送）
+        if send_telegram_message(summary_msg):
+            logging.info("✅ 签到结果已通过TG推送")
+        else:
+            logging.warning("⚠️  TG推送失败，但签到任务已完成")
             
         logging.info("🏁 混合签到器执行完毕")
 
