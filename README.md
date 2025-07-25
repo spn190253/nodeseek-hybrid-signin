@@ -36,9 +36,12 @@
 2. 按 `F12` 打开开发者工具
 3. 切换到 **Network** 标签页
 4. 刷新页面，找到任意请求
-5. 在 **Request Headers** 中复制完整的 `Cookie` 值（直接复制整串即可）
+5. 在 **Request Headers** 中复制完整的 `Cookie` 值
 
-> **💡 提示**: 直接复制浏览器中的完整 Cookie 字符串，无需手动添加分号或格式化
+> **💡 重要提示**: 
+> - **单账户**: 直接粘贴完整 Cookie 字符串
+> - **多账户**: 用 `&` 连接不同账户的完整 Cookie
+> - 无需手动添加分号或格式化，直接复制浏览器中的完整字符串即可
 
 #### 可选的 Variables 配置
 
@@ -50,7 +53,7 @@
 
 | 密钥名 | 说明 |
 |--------|------|
-| `TG_BOT_TOKEN` | Telegram Bot Token (用于推送Cookie过期通知) |
+| `TG_BOT_TOKEN` | Telegram Bot Token (用于推送签到结果和Cookie过期通知) |
 | `TG_CHAT_ID` | Telegram Chat ID (接收通知的聊天ID) |
 
 ### 3. 启用 Actions
@@ -79,17 +82,26 @@
 
 ### 多账户配置示例
 
+#### 单账户配置
 ```bash
-# 单账户 - 直接复制完整Cookie
-session=232d19a2b6de92013fbf57f6f454a973; smac=1751693002-Q3I8vle80Co1dHjX65C9YvlP0X3jfdBcdLGUffVWbnM; cf_clearance=xJV0806yEMy...
-
-# 多账户 - 用 & 分隔不同账户的完整Cookie
-session=账户1完整cookie字符串&session=账户2完整cookie字符串
+# 直接复制完整的 Cookie 字符串
+session=a1b2c3d4e5f6g7h8; smac=987654321-XxYyZzAaBbCc; colorscheme=light; hmti_=1234567890-AbCdEfGhIjKl; cf_clearance=aBcDeFgHiJ1234567890-example-cloudflare-clearance-token
 ```
+
+#### 多账户配置  
+```bash
+# 用 & 连接不同账户的完整 Cookie
+session=a1b2c3d4e5f6g7h8; smac=987654321-XxYyZzAaBbCc; colorscheme=light; hmti_=1234567890-AbCdEfGhIjKl; cf_clearance=aBcDeFgHiJ1234567890-example1&session=x9y8z7w6v5u4t3s2; smac=123456789-DdEeFfGgHhIi; colorscheme=dark; hmti_=0987654321-MnOpQrStUvWx; cf_clearance=XyZaBcDeF9876543210-example2
+```
+
+> **⚠️ 重要**: 
+> - 不要在示例中使用真实的 Cookie 值
+> - 每个账户的完整 Cookie 用 `&` 分隔
+> - 保持每个账户内部的分号格式不变
 
 ### Telegram Bot 通知设置
 
-如果希望在 Cookie 过期时收到 Telegram 通知，可以配置 Telegram Bot：
+配置 Telegram Bot 可以接收**详细的签到结果报告**和Cookie过期通知：
 
 #### 1. 创建 Telegram Bot
 
@@ -110,12 +122,25 @@ session=账户1完整cookie字符串&session=账户2完整cookie字符串
 2. 访问: `https://api.telegram.org/bot你的BOT_TOKEN/getUpdates`
 3. 在返回的 JSON 中查找 `chat.id` 值
 
-#### 3. Cookie 过期处理
+#### 3. 通知内容
 
-当 Cookie 过期时：
-1. 脚本会自动发送 Telegram 通知
-2. 收到通知后，到 GitHub 仓库的 **Variables** 页面手动更新 `NS_COOKIE`
-3. 无需额外配置，简单有效
+配置完成后，每次签到将收到详细报告：
+
+```
+🌟 NodeSeek 签到报告
+⏰ 2025-01-15 08:30:00
+
+✅ 签到成功 (2个账户)
+📱 账户1：今天已完成签到，请勿重复操作 | 30天已签到30天，平均5.1个鸡腿/天  
+📱 账户2：签到成功，获得5个鸡腿
+
+📊 统计摘要
+✅ 成功：2个
+❌ 失败：0个
+📈 成功率：100.0%
+```
+
+当 Cookie 过期时也会收到通知，提醒及时更新。
 
 ---
 
