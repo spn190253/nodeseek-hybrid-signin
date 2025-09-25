@@ -141,7 +141,7 @@ class EnvironmentDetector:
             'enable_statistics': os.environ.get("ENABLE_STATISTICS", "true").lower() == "true",
             'enable_selenium': os.environ.get("ENABLE_SELENIUM", "auto"),
             'proxy_url': os.environ.get("PROXY_URL", ""),
-            'random_mode': os.environ.get("NS_RANDOM", "true").lower() == "true",
+            'random_mode': os.environ.get("NS_RANDOM", "false").lower() == "true",
             'headless': os.environ.get("HEADLESS", "true").lower() == "true",
             'timeout': int(os.environ.get("TIMEOUT", "30")),
         }
