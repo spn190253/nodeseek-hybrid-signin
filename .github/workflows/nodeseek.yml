@@ -67,7 +67,7 @@ jobs:
         echo "GITHUB_ACTIONS=true" >> $GITHUB_ENV
         echo "ENABLE_STATISTICS=${{ github.event.inputs.enable_statistics || 'true' }}" >> $GITHUB_ENV
         echo "ENABLE_SELENIUM=${{ github.event.inputs.enable_selenium || 'auto' }}" >> $GITHUB_ENV
-        echo "NS_RANDOM=${{ github.event.inputs.random_mode || 'true' }}" >> $GITHUB_ENV
+        echo "NS_RANDOM=${{ github.event.inputs.random_mode || 'false' }}" >> $GITHUB_ENV
         echo "HEADLESS=true" >> $GITHUB_ENV
         echo "TIMEOUT=60" >> $GITHUB_ENV
         
